@@ -2,13 +2,18 @@
 
 ## Installations
 
-None
+Dependency: 
+- Python2
+- psycopg2
+```shell
+$pip install psycopg2
+```
 
 ## Usage
 
 Run the Python code `queries.py` for queries
-```python
-python queries.py
+```shell
+$python queries.py
 ```
 
 Or open the `solution.md` in browser for a sample output of what the solution could look like.
