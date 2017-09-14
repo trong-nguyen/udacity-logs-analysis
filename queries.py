@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+
+import sys
 import psycopg2
 
 top_articles = """
@@ -52,47 +55,67 @@ FROM
 WHERE percentages.percentage > 1;
 """
 
+
 # The DB- API execution
-conn = psycopg2.connect(database='news')
-cur = conn.cursor()
-cur.execute(top_articles)
-
-# Top titles
-cur.execute(top_titles)
-titles_res = cur.fetchall()
-
-# Top authors
-cur.execute(top_authors)
-authors_res = cur.fetchall()
-
-# Top error requests
-cur.execute(top_error_requests)
-error_res = cur.fetchall()
-
-conn.close()
+def connect(dbname):
+    try:
+        conn = psycopg2.connect(database=dbname)
+        return conn.cursor(), conn
+    except psycopg2.Error as e:
+        print 'Error connecting to database "{}"'.format(dbname)
+        sys.exit(1)
 
 
-# Result representation
+def execute_query(q, cur, make_extra_views):
+    if make_extra_views:
+        cur.execute(make_extra_views)
+
+    cur.execute(q)
+    return cur.fetchall()
+
+
+def get_query_results(db, query, make_extra_views):
+    cursor, conn = connect(db)
+    results = execute_query(query, cursor, make_extra_views)
+    conn.close()
+    return results
+
+
 def record_to_string(fm, data):
     """
     Convert data tables to format defined by fm
     """
     return '\n'.join(map(lambda d: fm.format(*d), data))
 
-fm = '{} - {} views'
-print """
+
+def present_top_titles(db, query):
+    res = get_query_results(db, query, make_extra_views=top_articles)
+    fm = '{} - {} views'
+    print """
 The {} most popular article(s) of all times:
 {}
-""".format(len(titles_res), record_to_string(fm, titles_res))
+""".format(len(res), record_to_string(fm, res))
 
-fm = '{} - {} views'
-print """
+
+def present_top_authors(db, query):
+    res = get_query_results(db, query, make_extra_views=top_articles)
+    fm = '{} - {} views'
+    print """
 The {} most popular author(s) of all times:
 {}
-""".format(len(authors_res), record_to_string(fm, authors_res))
+""".format(len(res), record_to_string(fm, res))
 
-fm = '{} - {:.01f}% errors'
-print """
+
+def present_error_days(db, query):
+    res = get_query_results(db, query, None)
+    fm = '{} - {:.01f}% errors'
+    print """
 The {} day(s) where more than 1% requests leads to errors:
 {}
-""".format(len(error_res), record_to_string(fm, error_res))
+""".format(len(res), record_to_string(fm, res))
+
+if __name__ == '__main__':
+    db = 'news'
+    present_top_titles(db, top_titles)
+    present_top_authors(db, top_authors)
+    present_error_days(db, top_error_requests)
